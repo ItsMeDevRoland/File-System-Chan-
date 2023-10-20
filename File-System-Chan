@@ -1,0 +1,137 @@
+/*:
+ * @target MZ
+ * @plugindesc Check File Existence and Its Content!
+ * @author ItsMeDevRoland
+ * @version 1.0.0
+ * @url ItsMeDevRoland.itch.io
+ * @help This plugin checks if a specific file exists and if it contains a specific string.. PS: LOCK EM IS DISABLED FOR TESTING!
+ *
+ * @param lockEm
+ * @text Lock Em
+ * @desc If true, the plugin will stop checking after the first successful check.
+ * @type boolean
+ * @default false
+ *
+ * @command checkFile
+ * @text Check File
+ * @desc Checks if a specific file exists.
+ *
+ * @arg filePath
+ * @type text
+ * @text File Path
+ * @desc The path of the file to check.
+ *
+ * @arg fileName
+ * @type text
+ * @text File Name
+ * @desc The name of the file to check.
+ *
+ * @arg switchId
+ * @type switch
+ * @text Switch ID
+ * @desc The ID of the switch that will be set based on whether or not the file exists.
+ *
+ * @command checkFileContent
+ * @text Check File Content
+ * @desc Checks if a specific file contains a specific string.
+ *
+ * @arg filePath
+ * @type text
+ * @text File Path
+ * @desc The path of the file to check.
+ *
+*  @arg fileName
+*  @type text
+*  @text File Name
+*  @desc The name of the file to check.
+*
+*  @arg contentString
+*  @type text
+*  @text Content String
+*  @desc The string to look for in the file.
+*
+*  @arg switchId
+*  @type switch
+*  @text Switch ID
+*  @desc The ID of the switch that will be set based on whether or not the file contains the string.
+*
+*  @command flushPathCheckFileContent
+*  @text Flush Path Check File Content 
+*  @desc Outputs the current file path and file name used in the checkFileContent command to the console.
+*
+*  @command flushPathCheckFileExistence 
+*  @text Flush Path Check File Existence 
+*  @desc Outputs the current file path used in the checkFile command to the console.
+ */
+
+(() => {
+    const pluginName = 'File Manager~ Chan!';
+    const parameters = PluginManager.parameters(pluginName);
+    const lockEm = Boolean(parameters['lockEm'] || false);
+
+    const fs = require('fs');
+    const path = require('path');
+
+    let currentFilePath = '';
+    let currentFileName = '';
+    let fileExists = false;
+
+    const checkFileExistence = (filePath = process.cwd(), fileName = '') => {
+        if (filePath === '.currentLocation()') {
+            filePath = process.cwd();
+        }
+        currentFilePath = path.join(filePath, fileName);
+        return new Promise((resolve) => {
+            if (fileExists && lockEm) {
+                resolve(fileExists);
+            } else {
+                fs.access(currentFilePath, fs.constants.F_OK, (err) => {
+                    fileExists = !err;
+                    resolve(fileExists);
+                });
+            }
+        });
+    };
+
+    PluginManager.registerCommand(pluginName, 'checkFile', (args) => {
+        checkFileExistence(args.filePath, args.fileName).then((exists) => {
+            $gameSwitches.setValue(Number(args.switchId), exists);
+            if (exists) {
+                console.log('FOUND IT!');
+            } else {
+                console.log('ERROR FINDING IT!');
+            }
+        });
+    });
+
+    PluginManager.registerCommand(pluginName, 'checkFileContent', (args) => {
+        if (args.filePath === '.currentLocation()') {
+            args.filePath = process.cwd();
+        }
+        currentFilePath = args.filePath;
+        currentFileName = args.fileName;
+        fs.readFile(path.join(args.filePath, args.fileName), 'utf8', function(err, data) {
+            if (err) {
+                console.log('ERROR READING FILE!');
+                $gameSwitches.setValue(Number(args.switchId), false);
+            } else {
+                const found = data.includes(args.contentString);
+                $gameSwitches.setValue(Number(args.switchId), found);
+                if (found) {
+                    console.log('FOUND IT!');
+                } else {
+                    console.log('ERROR FINDING IT!');
+                }
+            }
+        });
+    });
+
+    PluginManager.registerCommand(pluginName, 'flushPathCheckFileContent', () => {
+        console.log(`Current file path: ${currentFilePath}`);
+        console.log(`Current file name: ${currentFileName}`);
+    });
+
+    PluginManager.registerCommand(pluginName, 'flushPathCheckFileExistence', () => {
+        console.log(`Current file path: ${currentFilePath}`);
+    });
+})();
